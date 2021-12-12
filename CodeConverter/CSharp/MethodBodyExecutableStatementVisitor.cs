@@ -33,6 +33,7 @@ namespace ICSharpCode.CodeConverter.CSharp
         private readonly HashSet<VBSyntax.StatementSyntax> _redundantSourceStatements = new HashSet<VBSyntax.StatementSyntax>();
         private readonly INamedTypeSymbol _vbBooleanTypeSymbol;
         private readonly HashSet<ILocalSymbol> _localsToInlineInLoop;
+        private readonly HoistedNodeState _hoistedState;
 
         public bool IsIterator { get; set; }
         public IdentifierNameSyntax ReturnVariable { get; set; }
@@ -63,7 +64,8 @@ namespace ICSharpCode.CodeConverter.CSharp
             _withBlockLhs = withBlockLhs;
             _extraUsingDirectives = extraUsingDirectives;
             _methodsWithHandles = typeContext.MethodsWithHandles;
-            var byRefParameterVisitor = new HoistedNodeStateVisitor(this, typeContext.HoistedState, semanticModel, _generatedNames);
+            _hoistedState = typeContext.HoistedState;
+            var byRefParameterVisitor = new HoistedNodeStateVisitor(this, _hoistedState, semanticModel, _generatedNames);
             CommentConvertingVisitor = new CommentConvertingMethodBodyVisitor(byRefParameterVisitor);
             _vbBooleanTypeSymbol = _semanticModel.Compilation.GetTypeByMetadataName("System.Boolean");
             _localsToInlineInLoop = localsToInlineInLoop;
@@ -104,7 +106,16 @@ namespace ICSharpCode.CodeConverter.CSharp
             foreach (var declarator in node.Declarators) {
                 var splitVariableDeclarations = await SplitVariableDeclarationsAsync(declarator, preferExplicitType: isConst);
                 var localDeclarationStatementSyntaxs = splitVariableDeclarations.Variables.Select(declAndType => SyntaxFactory.LocalDeclarationStatement(modifiers, declAndType.Decl));
-                declarations.AddRange(localDeclarationStatementSyntaxs);
+                if (node.Modifiers.Any(m => m.IsKind(VBasic.SyntaxKind.StaticKeyword))) {
+                    foreach (var decl in localDeclarationStatementSyntaxs) {
+                        var variable = decl.Declaration.Variables.Single();
+                        var initializeValue = variable.Initializer.Value;
+                        _hoistedState.Hoist(new AdditionalDeclaration(variable.Identifier.Text, initializeValue, decl.Declaration.Type));
+                    }
+                } else {
+                    declarations.AddRange(localDeclarationStatementSyntaxs);
+                }
+
                 var localFunctions = splitVariableDeclarations.Methods.Cast<LocalFunctionStatementSyntax>();
                 declarations.AddRange(localFunctions);
             }

@@ -960,6 +960,54 @@ internal partial class TestClass
         }
 
         [Fact]
+        public async Task TestConstructorStaticLocalConvertedToFieldAsync()
+        {
+            await TestConversionVisualBasicToCSharpAsync(
+                @"Class StaticLocalConvertedToField
+    Sub New(x As Boolean)
+        Static sPrevPosition As Integer = 7
+        Console.WriteLine(sPrevPosition)
+    End Sub
+    Sub New(x As Integer)
+        Static sPrevPosition As Integer
+        Console.WriteLine(sPrevPosition)
+    End Sub
+End Class", @"TODO1");
+        }
+
+        [Fact]
+        public async Task TestStaticLocalConvertedToFieldAsync()
+        {
+            await TestConversionVisualBasicToCSharpAsync(
+                @"Class StaticLocalConvertedToField
+    Sub OtherName(x As Boolean)
+        Static sPrevPosition As Integer
+        Console.WriteLine(sPrevPosition)
+    End Sub
+    Function OtherName(x As Integer) as Integer
+        Static sPrevPosition As Integer
+        Return sPrevPosition
+    End Function
+End Class", @"TODO2");
+        }
+
+        [Fact]
+        public async Task TestStaticLocalConvertedToStaticFieldAsync()
+        {
+            await TestConversionVisualBasicToCSharpAsync(
+                @"Class StaticLocalConvertedToField
+    Shared Sub OtherName(x As Boolean)
+        Static sPrevPosition As Integer
+        Console.WriteLine(sPrevPosition)
+    End Sub
+    Sub OtherName(x As Integer)
+        Static sPrevPosition As Integer
+        Console.WriteLine(sPrevPosition)
+    End Sub
+End Class", @"TODO3");
+        }
+
+        [Fact]
         public async Task FieldWithNonStaticInitializerAsync()
         {
             await TestConversionVisualBasicToCSharpAsync(@"Public Class A
